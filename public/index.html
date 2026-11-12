@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EdVyro Secure Internship Application</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #333; background: #f9f9f9; }
+        .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .loading { color: #0066cc; font-weight: bold; }
+        .error { color: #d9534f; background: #fdf7f7; padding: 15px; border-radius: 6px; border: 1px solid #ebccd1; }
+        form { background: #fff; padding: 20px; border-radius: 8px; margin-top: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #0066cc; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0055b3; }
+    </style>
+</head>
+<body>
+
+    <h1>EdVyro Internship Opportunities</h1>
+    
+    <!-- Step 1 Container: Loading & Failure States -->
+    <div id="data-container">
+        <div class="loading">Loading available opportunities...</div>
+    </div>
+
+    <!-- Step 2 Container: Application Form -->
+    <form id="app-form">
+        <h2>Apply for Internship</h2>
+        <div class="form-group">
+            <label for="name">Full Name:</label>
+            <input type="text" id="name" required minlength="2" maxlength="50">
+        </div>
+        <div class="form-group">
+            <label for="email">Email Address:</label>
+            <input type="email" id="email" required>
+        </div>
+        <button type="submit">Submit Application</button>
+        <p id="form-msg" style="margin-top: 10px; font-weight: bold;"></p>
+    </form>
+
+    <script>
+        // Fetch and render data with loading & error states
+        async function loadData() {
+            const container = document.getElementById('data-container');
+            container.innerHTML = '<div class="loading">Loading available opportunities...</div>';
+            
+            try {
+                const response = await fetch('/api/internships');
+                if (!response.ok) throw new Error(`Server returned status ${response.status}`);
+                
+                const result = await response.json();
+                const items = result.data || result; // handle array or object response
+                
+                if (items.length === 0) {
+                    container.innerHTML = '<p>No internship listings found.</p>';
+                    return;
+                }
+                
+                container.innerHTML = items.map(item => `
+                    <div class="card">
+                        <h3>${item.title || item.name || 'Internship Position'}</h3>
+                        <p>${item.description || item.details || 'No description provided.'}</p>
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = `
+                    <div class="error">
+                        <p><strong>Failed to load data:</strong> ${err.message}</p>
+                        <button onclick="loadData()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        loadData();
+
+        // Client-side form validation and submission
+        document.getElementById('app-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const msgEl = document.getElementById('form-msg');
+
+            if (!name || !email) {
+                msgEl.style.color = 'red';
+                msgEl.textContent = 'Please fill out all fields.';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/apply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    msgEl.style.color = 'green';
+                    msgEl.textContent = 'Application submitted successfully!';
+                    document.getElementById('app-form').reset();
+                } else {
+                    msgEl.style.color = 'red';
+                    msgEl.textContent = data.message || 'Submission failed.';
+                }
+            } catch (err) {
+                msgEl.style.color = 'red';
+                msgEl.textContent = 'Network error during submission.';
+            }
+        });
+    </script>
+</body>
+</html>
